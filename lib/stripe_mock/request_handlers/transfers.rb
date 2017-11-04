@@ -3,10 +3,11 @@ module StripeMock
     module Transfers
 
       def Transfers.included(klass)
-        klass.add_handler 'post /v1/transfers',             :new_transfer
-        klass.add_handler 'get /v1/transfers',              :get_all_transfers
-        klass.add_handler 'get /v1/transfers/(.*)',         :get_transfer
-        klass.add_handler 'post /v1/transfers/(.*)/cancel', :cancel_transfer
+        klass.add_handler 'post /v1/transfers',                :new_transfer
+        klass.add_handler 'get /v1/transfers',                 :get_all_transfers
+        klass.add_handler 'get /v1/transfers/(.*)',            :get_transfer
+        klass.add_handler 'post /v1/transfers/(.*)/cancel',    :cancel_transfer
+        klass.add_handler 'post /v1/transfers/(.*)/reversals', :reverse_transfer
       end
 
       def get_all_transfers(route, method_url, params, headers)
@@ -63,6 +64,17 @@ module StripeMock
         assert_existence :transfer, $1, transfers[$1]
         t = transfers[$1] ||= Data.mock_transfer(:id => $1)
         t.merge!({:status => "canceled"})
+      end
+
+      def reverse_transfer(route, method_url, params, headers)
+        route =~ method_url
+        transfer_id = $1
+        assert_existence :transfer, transfer_id, transfers[transfer_id]
+        transfer = transfers[transfer_id]
+
+        transfer.merge!(:reversals => {:total_count => transfer[:reversals][:total_count] + 1}, :reversed => true)
+
+        Data.mock_transfer_reversal(:transfer => transfer_id, :amount => transfer[:amount])
       end
     end
   end
